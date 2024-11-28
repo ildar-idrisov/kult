@@ -17,7 +17,7 @@ RUN pip install --upgrade pip
 
 #video-face
 RUN pip install cmake
-RUN pip install opencv-python deepface tf-keras==2.1 dlib pillow
+RUN pip install opencv-python pillow tf-keras==2.1 dlib deepface
 
 #audio-speech train vera
 RUN pip install matplotlib pandas librosa plotly seaborn antropy np_utils pydub kagglehub fastparquet
