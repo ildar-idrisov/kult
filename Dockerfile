@@ -24,6 +24,9 @@ RUN pip install matplotlib pandas librosa plotly seaborn antropy np_utils pydub 
 #tensorflow[and-cuda]
 RUN pip install torch torchvision
 
+#audio-text
+RUN pip install openai-whisper transformers
+
 #server
 RUN apt install -y autoconf automake nasm build-essential cmake git libtool pkg-config texinfo wget yasm libssl-dev libcurl4-openssl-dev
 RUN mkdir /ffmpeg_sources

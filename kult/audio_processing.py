@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from scipy.stats import mode
 import joblib
 
-from .utils.feature_extraction import get_features, get_features_file
+from .utils.feature_extraction import get_features, get_features_file, audio_to_mono
 from .models.audio_model import load_audio_model
 
 class AudioProcessor:
@@ -31,6 +31,10 @@ class AudioProcessor:
 
 
     def speech_emotion(self, audio_data, sampling_rate):
+        audio_data = audio_to_mono(audio_data)
+        # Преобразование в float32 и нормализация для librosa
+        audio_data = audio_data.astype(np.float32) / 32768.0
+
         features = get_features(audio_data, sampling_rate)
         #features = get_features_file('./1001_DFA_ANG_XX.wav')
 

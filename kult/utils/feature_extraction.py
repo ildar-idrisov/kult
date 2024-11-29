@@ -1,5 +1,6 @@
 import numpy as np
 import librosa
+
 from .augmentation import inject_noise, pitching, stretching
 
 def zero_crossing_rate(data, frame_length, hop_length):
@@ -67,12 +68,19 @@ def feature_extraction(data, sampling_rate, frame_length = 2048, hop_length = 51
                      ))
     return result
 
+def audio_to_mono(audio_data):
+    if audio_data.ndim > 1:
+        audio_data = np.mean(audio_data, axis=0)
+    return audio_data
+
+def audio_resample(data, input_sampling_rate, output_sampling_rate):
+    if input_sampling_rate != output_sampling_rate:
+        data = librosa.resample(data, orig_sr=input_sampling_rate, target_sr=output_sampling_rate)
+        input_sampling_rate = output_sampling_rate
+    return data, output_sampling_rate
 
 def get_features(data, sampling_rate):
-    target_sampling_rate = 22050
-    if sampling_rate != target_sampling_rate:
-        data = librosa.resample(data, orig_sr=sampling_rate, target_sr=target_sampling_rate)
-        sampling_rate = target_sampling_rate
+    data, sampling_rate = audio_resample(data, sampling_rate, 22050)
 
     # No audio data augmentation.
     audio_1 = feature_extraction(data, sampling_rate)

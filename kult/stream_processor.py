@@ -7,8 +7,10 @@ import torch
 import subprocess
 import os
 import glob
-from .audio_processing import AudioProcessor
+
 from .video_processing import VideoProcessor
+from .audio_processing import AudioProcessor
+from .text_processing import TextProcessor
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -24,6 +26,7 @@ class StreamProcessor:
         logging.info(f'Device: {self.device}')
         self.audio_processor = AudioProcessor(audio_model_path, audio_scaler_path, self.device)
         self.video_processor = VideoProcessor(self.device)
+        self.text_processor = TextProcessor(self.device)
 
         self.is_running = True
 
@@ -167,18 +170,17 @@ class StreamProcessor:
             for frame in audio_frames:
                 audio_data = frame.to_ndarray()
                 sampling_rate = frame.sample_rate
-
-                # Преобразование в float32 и нормализация для librosa
-                audio_data = audio_data.astype(np.float32) / 32768.0
-                if audio_data.ndim > 1:
-                    audio_data = np.mean(audio_data, axis=0) # Преобразование в моно
                 all_audio_samples.append(audio_data)
 
             if all_audio_samples:
-                combined_audio_data = np.concatenate(all_audio_samples)
+                combined_audio_data = np.concatenate(all_audio_samples, axis=1)
                 emotion, prob = self.audio_processor.speech_emotion(combined_audio_data, sampling_rate)
                 if emotion and prob:
                     logging.info(f'Аудио: {emotion}, {prob:.2f}')
+
+                emotion, prob, text = self.text_processor.text_emotion(combined_audio_data, sampling_rate)
+                if emotion and prob:
+                    logging.info(f'Текст: {emotion}, {prob:.2f}, {text}')
 
         except Exception as e:
             logging.error(f'Непредвиденная ошибка при анализе данных: {e}')
