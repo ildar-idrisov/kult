@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kult"
+version = "0.1.0"
+description = "A multimodal emotion recognition system using audio, video, and text data"
+authors = [{ name = "Ildar" }]
+
+dependencies = [
+    # Core libraries
+    #"matplotlib",
+    #"pandas",
+    #"librosa",
+    #"plotly",
+    #"seaborn",
+    #"antropy",
+    #"np-utils",
+    #"pydub",
+    #"fastparquet",
+    "torch>=2.0",
+    "torchvision",
+    #"opencv-python",
+    #"pillow",
+    #"dlib",
+    #"tf-keras==2.17",
+    #"deepface",
+
+    # Audio/text processing
+    #"openai-whisper",
+    #"transformers",
+
+    # Server requirements
+    #"av"
+]
+
+[tool.setuptools.packages.find]
+include = ["kult*"]

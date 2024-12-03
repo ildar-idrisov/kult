@@ -21,7 +21,6 @@ RUN pip install opencv-python pillow tf-keras==2.17 dlib deepface
 
 #audio-speech train vera
 RUN pip install matplotlib pandas librosa plotly seaborn antropy np_utils pydub kagglehub fastparquet
-#tensorflow[and-cuda]
 RUN pip install torch torchvision
 
 #audio-text
@@ -62,9 +61,11 @@ RUN PKG_CONFIG_PATH=/usr/local/lib/pkgconfig pip install av --no-binary av
 #RUN pip install torch torchvision mediapipe scikit-learn transformers sentence-transformers gensim protobuf
 RUN pip install jupyter
 
+WORKDIR /app
+
+RUN pip install -e .
+
 EXPOSE 8080
 EXPOSE 5000
-
-WORKDIR /app
 
 #RUN git clone https://github.com/CheyneyComputerScience/CREMA-D.git
