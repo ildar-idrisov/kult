@@ -1,5 +1,7 @@
 # project's
 kult/models/checkpoints/
+kult/train/training_runs/
+kult/train/training_runs/*.parquet
 cache/
 tmp/
 
