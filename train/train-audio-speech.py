@@ -24,7 +24,8 @@ print(f"Using device: {device}")
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-training_folder = os.path.join(script_dir, "training_runs", timestamp)
+training_runs_folder = os.path.join(script_dir, "training_runs")
+training_folder = os.path.join(training_runs_folder, timestamp)
 os.makedirs(training_folder, exist_ok=True)
 
 # Processing CREMA Dataset
@@ -73,10 +74,10 @@ crema_df = crema_df.replace({'intensity': {'LO': 'low','MD': 'medium',
 combined_df = pd.concat([crema_df, ], axis=0)
 
 print(combined_df.emotion.value_counts())
-print('Shape=', combined_df.shape)
+print('Dataset shape =', combined_df.shape)
 
-# Note: The audio file in cremad/AudioWAV//1076_MTI_SAD_XX.wav is labeled as sad but it is actually an empty audio file. Therefore, there is a need to delete it.
-to_delete = combined_df.index[combined_df['location'] == '../input/cremad/AudioWAV//1076_MTI_SAD_XX.wav'].tolist()
+# Note: The audio file in cremad/AudioWAV/1076_MTI_SAD_XX.wav is labeled as sad but it is actually an empty audio file
+to_delete = combined_df.index[combined_df['location'] == os.path.join(CREMAD_PATH_WAV, '1076_MTI_SAD_XX.wav')].tolist()
 combined_df = combined_df.drop(to_delete)
 
 audio_features_list = []
@@ -84,7 +85,7 @@ genders_list = []
 emotions_list = []
 locations_list = []
 
-file_path_parquet = os.path.join(training_folder, "audio_features.parquet")
+file_path_parquet = os.path.join(training_runs_folder, "audio_features.parquet")
 if os.path.exists(file_path_parquet):
     audio_features_df = pd.read_parquet(file_path_parquet)
 else:
@@ -123,15 +124,6 @@ audio_features_df = audio_features_df.drop_duplicates()
 X = audio_features_df.drop(labels = ['emotion', 'gender', 'location'], axis = 1)
 y = audio_features_df['emotion']
 
-#X.to_parquet(f'{training_folder}/X.parquet', engine = 'fastparquet')
-# Convert y from a series to a dataframe to be able to store it in .parquet file format.
-#y = y.to_frame(name = 'Emotion')
-#y.to_parquet(f'{training_folder}/y.parquet', engine = 'fastparquet')
-#X = pd.read_parquet(f'{training_folder}/X.parquet')
-#y = pd.read_parquet(f'{training_folder}/y.parquet')
-
-#
-
 label = LabelEncoder()
 y = label.fit_transform(y)
 
@@ -166,12 +158,6 @@ valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False)
 num_classes = len(label.classes_)
 model = CNN1D(input_shape=X_train.shape[1], num_classes=num_classes).to(device)
 
-# Задаем функцию потерь и оптимизатор
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True, min_lr=0.00001)
-scheduler_delay = 100
-
 # Callback-like функции: EarlyStopping и ReduceLROnPlateau
 class EarlyStopping:
     def __init__(self, patience=10, mode='max'):
@@ -188,6 +174,7 @@ class EarlyStopping:
             self.best_score = current_score
             self.best_model = model.state_dict()
             self.counter = 0
+            print(f'Best model updated with score: {self.best_score:.4f}')
         else:
             self.counter += 1
 
@@ -195,12 +182,18 @@ class EarlyStopping:
             return True  # Stop training
         return False
 
+# Задаем функцию потерь и оптимизатор
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-5)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True, min_lr=0.000001)
+scheduler_start = 90
 early_stopping = EarlyStopping(patience=20, mode='min')
 
 # Тренировка
 num_epochs = 1000
 history = {'loss': [], 'val_loss': [], 'accuracy': [], 'val_accuracy': []}
 
+print()
 start_time = time.time()
 for epoch in range(num_epochs):
     epoch_start_time = time.time()
@@ -252,8 +245,7 @@ for epoch in range(num_epochs):
 
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
           f"Accuracy: {train_accuracy:.2f}%, Val Accuracy: {val_accuracy:.2f}%, "
-          f"Time/Epoch: {epoch_time:.2f}s, Estimated Total: {estimated_total_time:.2f}s, "
-          f"Remaining: {estimated_remaining_time:.2f}s")
+          f"Time/Epoch: {epoch_time:.2f}s, Elapsed: {total_time_elapsed:.2f}s, Remaining: {estimated_remaining_time:.2f}s")
 
     history['loss'].append(train_loss)
     history['val_loss'].append(val_loss)
@@ -261,23 +253,30 @@ for epoch in range(num_epochs):
     history['val_accuracy'].append(val_accuracy)
 
     # Использование ReduceLROnPlateau для динамического уменьшения learning rate
-    if (epoch > scheduler_delay):
-        scheduler.step(val_loss)
+    if (val_accuracy > scheduler_start):
+        scheduler.step(val_loss, epoch=epoch+1)
 
     # Check for early stopping
     if early_stopping(val_loss, model):
         model.load_state_dict(early_stopping.best_model)
         break
 
-# Сохранение истории
-#with open(f'{training_folder}/trainHistoryDictionary', 'wb') as history_file:
-#    pickle.dump(history, history_file)
-with open(os.path.join(training_folder, 'trainHistoryDictionary.json'), 'w') as history_file:
-    json.dump(history, history_file, indent=4)
-
-
 # Сохранение модели
 torch.save(model.state_dict(), os.path.join(training_folder, 'speech_model.pth'))
+
+# Сохранение истории
+with open(os.path.join(training_folder, 'trainHistoryByEpoch.txt'), 'w') as history_file:
+    for epoch in range(len(history['loss'])):
+        # Форматируем строку для текущей эпохи
+        epoch_data = (
+            f"Epoch: {epoch + 1}, "
+            f"Loss: {history['loss'][epoch]:.4f}, "
+            f"Val Loss: {history['val_loss'][epoch]:.4f}, "
+            f"Accuracy: {history['accuracy'][epoch]:.2f}%, "
+            f"Val Accuracy: {history['val_accuracy'][epoch]:.2f}%\n"
+        )
+        # Записываем строку в файл
+        history_file.write(epoch_data)
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 ax1.plot(history['loss'], label='loss')
